@@ -6,6 +6,12 @@ using namespace std;
 
 #pragma comment(lib,"ws2_32.lib")
 
+// 아래는 추가하던데 왜 하는지 찾아봐야 됨
+//#include "Windows/AllowWindowsPlatformTypes.h"
+//#include "Windows/prewindowsapi.h"
+//#include "Windows/PostWindowsApi.h"
+//#include "Windows/HideWindowsPlatformTypes.h"
+
 int main()
 {
 	WSADATA WsaData;
