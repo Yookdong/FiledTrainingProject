@@ -5,12 +5,11 @@
 using namespace std;
 
 #pragma comment(lib,"ws2_32.lib")
+#define PACKET_SIZE 1024
 
-// 아래는 추가하던데 왜 하는지 찾아봐야 됨
-//#include "Windows/AllowWindowsPlatformTypes.h"
-//#include "Windows/prewindowsapi.h"
-//#include "Windows/PostWindowsApi.h"
-//#include "Windows/HideWindowsPlatformTypes.h"
+SOCKET ServerSocket, ClientSocket;
+
+void proc_recvs();
 
 int main()
 {
@@ -21,15 +20,16 @@ int main()
 	if (Result != 0)
 	{
 		cout << "Error" << endl;
+		exit(-1);
 	}
 
-	SOCKET ServerSocket;
-	ServerSocket = socket(PF_INET, SOCK_STREAM, 0);
+	ServerSocket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 
 	if (ServerSocket == INVALID_SOCKET)
 	{
 		cout << "Socket Error\n";
 		cout << "Socket Error Number : " << GetLastError() << endl;
+		exit(-1);
 	}
 
 	SOCKADDR_IN ServerSockAddr;
@@ -44,6 +44,7 @@ int main()
 	{
 		cout << "Socket Error" << endl;
 		cout << "Socket Error Number : " << GetLastError() << endl;
+		exit(-1);
 	}
 
 	Result = listen(ServerSocket, SOMAXCONN);
@@ -52,6 +53,7 @@ int main()
 	{
 		cout << "Listen Error" << endl;
 		cout << "Socket Error Number : " << GetLastError() << endl;
+		exit(-1);
 	}
 
 	while (true)
@@ -60,17 +62,19 @@ int main()
 		ZeroMemory(&ClientSock, sizeof(ClientSock));
 		int ClientSockLength = sizeof(ClientSock);
 
-		SOCKET ClientSocket = accept(ServerSocket, (SOCKADDR*)&ClientSock, &ClientSockLength);
+		ClientSocket = accept(ServerSocket, (SOCKADDR*)&ClientSock, &ClientSockLength);
 
 		if (ClientSocket == INVALID_SOCKET)
 		{
 			cout << "Accept Error" << endl;
 			cout << "Socket Error Number : " << GetLastError() << endl;
+			exit(-1);
 		}
 		
 		char Message[1024] = { 0, };
 
-		cout << "Send to " << Message << endl; // 보낼 메세지 만들기
+		cout << "Send to ";
+		cin >> Message;
 
 		int SendByte = send(ClientSocket, Message, 9, 0);
 
@@ -78,6 +82,7 @@ int main()
 		{
 			cout << "Send Error" << endl;
 			cout << "Socket Error Number : " << GetLastError() << endl;
+			exit(-1);
 		}
 		
 		char Recv[1024] = { 0, };
@@ -88,16 +93,26 @@ int main()
 		{
 			cout << "Recv Error" << endl;
 			cout << "Socket Error Number : " << GetLastError() << endl;
+			exit(-1);
 		}
 
-		cout << "Recv to Client : " << *(int*)&Recv << endl << endl;
-
-		closesocket(ClientSocket);
+		cout << "Recv to Client : " << Recv << endl << endl;
 	}
 
+	closesocket(ClientSocket);
 	closesocket(ServerSocket);
-
 	WSACleanup();
 
 	return 0;
+}
+
+void proc_recvs()
+{
+	char buffer[PACKET_SIZE] = { 0 };
+
+	while (!WSAGetLastError()) { //여긴 일부로 차이점을 일부러 exit나 이런 이벤트 안넣었습니다
+		ZeroMemory(&buffer, PACKET_SIZE);
+		recv(ClientSocket, buffer, PACKET_SIZE, 0);
+		cout << "받은 메세지: " << buffer << endl;
+	}
 }
