@@ -45,18 +45,18 @@ int main()
 	State = Connection->createStatement();
 
 	// 해당 테이블이 존재한다면 삭제해라
-	State->execute("DROP TABLE IF EXISTS userinfo");
+	State->execute("DROP TABLE IF EXISTS UserInfo");
 	cout << "Finished dropping table (if existed)" << endl;
 
 	// 테이블 및 컬럼 생성
-	State->execute("CREATE TABLE userinfo (SeralNum serial PRIMARY KEY, UserName VARCHAR(50) not null, UserPassword VARCHAR(50) not null)");
+	State->execute("CREATE TABLE UserInfo (SerialNum serial PRIMARY KEY, UserName VARCHAR(50) not null, UserPassword VARCHAR(50) not null)");
 	cout << "Finished creating table" << endl;
 	delete State;
 	// --------------------
 
 
 	//---------- 테이블에 정보 넣기 ----------
-	PreState = Connection->prepareStatement("INSERT INTO userinfo(UserName, UserPassword) VALUES(?,?)");
+	PreState = Connection->prepareStatement("INSERT INTO UserInfo(UserName, UserPassword) VALUES(?,?)");
 
 	PreState->setString(1, "DongHyeok");
 	PreState->setString(2, "abcd123!");
@@ -76,7 +76,7 @@ int main()
 	
 
 	//---------- 테이블 정보 읽어 오기 ----------
-	PreState = Connection->prepareStatement("SELECT * FROM userinfo");
+	PreState = Connection->prepareStatement("SELECT * FROM UserInfo");
 	Result = PreState->executeQuery();
 
 	while (Result->next())
@@ -88,7 +88,7 @@ int main()
 
 
 	//---------- 테이블 업데이트 ----------
-	PreState = Connection->prepareStatement("UPDATE userinfo SET UserPassword = ? WHERE UserName = ?");
+	PreState = Connection->prepareStatement("UPDATE UserInfo SET UserPassword = ? WHERE UserName = ?");
 	PreState->setString(1, "123abcd!");
 	PreState->setString(2, "ChanYoung");
 	PreState->executeQuery();
@@ -96,7 +96,7 @@ int main()
 	cout << "----------\n";
 
 	// 갱신한 정보 다시 가져오기
-	PreState = Connection->prepareStatement("SELECT * FROM userinfo");
+	PreState = Connection->prepareStatement("SELECT * FROM UserInfo");
 	Result = PreState->executeQuery();
 
 	while (Result->next())
@@ -108,23 +108,36 @@ int main()
 
 
 	//---------- 테이블 삭제 ----------
-	PreState = Connection->prepareStatement("DELETE FROM userinfo WHERE UserName = ?");
-	PreState->setString(1, "ChanYoung");
-	Result = PreState->executeQuery();
-	printf("Row deleted\n");
-	cout << "----------\n";
+	//PreState = Connection->prepareStatement("DELETE FROM UserInfo WHERE UserName = ?");
+	//PreState->setString(1, "ChanYoung");
+	//Result = PreState->executeQuery();
+	//printf("Row deleted\n");
+	//cout << "----------\n";
 
-	// 수정한 정보 다시 가져오기
-	PreState = Connection->prepareStatement("SELECT * FROM userinfo");
-	Result = PreState->executeQuery();
+	//// 수정한 정보 다시 가져오기
+	//PreState = Connection->prepareStatement("SELECT * FROM UserInfo");
+	//Result = PreState->executeQuery();
 
-	while (Result->next())
-	{
-		printf("SerialNum : %d, UserName : %s, UserPassword : %s)\n", Result->getInt(1), Result->getString(2).c_str(), Result->getString(3).c_str());
-	}
-	cout << "----------\n";
+	//while (Result->next())
+	//{
+	//	printf("SerialNum : %d, UserName : %s, UserPassword : %s)\n", Result->getInt(1), Result->getString(2).c_str(), Result->getString(3).c_str());
+	//}
+	//cout << "----------\n";
 	// --------------------
 
+
+	//---------- 두번째 테이블 만들기 ----------
+	State = Connection->createStatement();
+
+	State->execute("DROP TABLE IF EXISTS ChatLog");
+	cout << "Finished dropping table (if existed)" << endl;
+
+	// 테이블 및 컬럼 생성
+	State->execute("CREATE TABLE ChatLog (MessageNum serial PRIMARY KEY, SenderID INT not null, SenderName VARCHAR(50) not null, Text VARCHAR(50), Time DATETIME)");
+	cout << "Finished creating table" << endl;
+	delete State;
+	// --------------------
+	
 	delete Result;
 	delete PreState;
 	delete Connection;
