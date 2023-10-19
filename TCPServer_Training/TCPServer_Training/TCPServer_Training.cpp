@@ -1,6 +1,7 @@
 ﻿#include <iostream>
 #include <WinSock2.h>
 #include <WS2tcpip.h>
+#include <process.h>
 
 #pragma comment(lib,"ws2_32.lib")
 #define PACKET_SIZE 1024
@@ -21,6 +22,12 @@ const string password = "ehggur0347!";
 fd_set Reads; // 원본
 fd_set CopyReads; // 복사본
 
+unsigned WINAPI Thread_Server(void* arg);
+unsigned WINAPI RecvThread(void* arg);
+unsigned WINAPI SendThread(void* arg);
+void SendMessage(SOCKET& socket, const char* str);
+void RecvMessage(SOCKET& socket, char* str);
+void SendError(SOCKET& socket);
 void RecvError(SOCKET& socket);
 
 int main()
@@ -126,7 +133,7 @@ int main()
 						if (ClientSocket == INVALID_SOCKET)
 						{
 							cout << "Accept Error Number : " << GetLastError() << endl;
-							exit(-1);
+							continue;
 						}
 
 						FD_SET(ClientSocket, &Reads);
@@ -136,36 +143,44 @@ int main()
 						inet_ntop(AF_INET, &ClientSockAddr.sin_addr.s_addr, IP, 1024);
 						cout << "connected : " << IP << endl;
 
-						char Message[1024] = { "Connect Success" };
+						//쓰레드로 가야 해서 일단 지움
+						//char Message[1024] = { "Connect Success" };
 
-						cout << "Send to Success\n";
+						//cout << "Send to Success\n";
 
-						int SendByte = send(ClientSocket, Message, (int)(sizeof(Message)), 0);
+						//int SendByte = send(ClientSocket, Message, (int)(sizeof(Message)), 0);
 
-						if (SendByte <= 0)
-						{
-							cout << "Send Error Number : " << GetLastError() << endl;
-							exit(-1);
-						}
+						//if (SendByte <= 0)
+						//{
+						//	cout << "Send Error Number : " << GetLastError() << endl;
+						//	exit(-1);
+						//}
+
+						_beginthreadex(nullptr, 0, Thread_Server, (void*)&ClientSocket, 0, nullptr);
+
+						//HANDLE ThreadHandles[2];
+						//ThreadHandles[0] = (HANDLE)_beginthreadex(nullptr, 0, RecvThread, (void*)&ClientSocket, 0, nullptr);
+						//ThreadHandles[1] = (HANDLE)_beginthreadex(nullptr, 0, SendThread, (void*)&ClientSocket, 0, nullptr);
 
 						break;
 					}
 					else
 					{
-						char Recv[1024] = { 0, };
+						//쓰레드로 가야 해서 일단 지움
+						//char Recv[1024] = { 0, };
 
-						int RecvByte = recv(Reads.fd_array[i], Recv, (int)sizeof(Recv), MSG_WAITALL);
+						//int RecvByte = recv(Reads.fd_array[i], Recv, (int)sizeof(Recv), MSG_WAITALL);
 
-						if (RecvByte <= 0)
-						{
-							cout << "Recv Error Number : " << GetLastError() << endl;
-							RecvError(Reads.fd_array[i]);
-							break;
-						}
-						else
-						{
-							 // 받은 메세지로 이제 작업하는 코드	
-						}
+						//if (RecvByte <= 0)
+						//{
+						//	cout << "Recv Error Number : " << GetLastError() << endl;
+						//	RecvError(Reads.fd_array[i]);
+						//	break;
+						//}
+						//else
+						//{
+						//	cout << recv << endl;
+						//}
 					}
 				}
 			}
@@ -175,11 +190,138 @@ int main()
 	closesocket(ListenSocket);
 	WSACleanup();
 
+	delete SQL_Connection;
+
 	return 0;
+}
+
+
+unsigned __stdcall Thread_Server(void* arg)
+{
+	cout << "---------- Server Thread Start ----------\n";
+
+	SOCKET client = *(SOCKET*)arg;
+
+	if (client == INVALID_SOCKET)
+	{
+		cout << "ClientSocket Error" << GetLastError() << endl;
+	}
+
+	SendMessage(client, "Connect Success");
+
+
+		char Recv[1024] = { 0, };
+
+		int RecvByte = recv(client, Recv, (int)sizeof(Recv), MSG_WAITALL);
+
+		if (RecvByte <= 0)
+		{
+			cout << "Recv Error Number : " << GetLastError() << endl;
+			RecvError(client);
+		}
+		else
+		{
+			cout << "Recv to Client : " << recv << endl;
+			strcpy_s(Recv, "");
+		}
+
+	return 0;
+}
+
+unsigned __stdcall RecvThread(void* arg)
+{
+	SOCKET clientSocket = *(SOCKET*)arg;
+
+	while (true)
+	{
+		char buffer[PACKET_SIZE] = { 0, };
+
+		int recvByte = recv(clientSocket, buffer, PACKET_SIZE, MSG_WAITALL);
+
+		if (recvByte <= 0)
+		{
+			cout << "Recv Error Num : " << GetLastError() << endl;
+			closesocket(clientSocket);
+			break;
+		}
+
+		cout << "Recv to Client : " << buffer << endl;
+	}
+
+	return 0;
+}
+
+unsigned __stdcall SendThread(void* arg)
+{
+	SOCKET clientSocket = *(SOCKET*)arg;
+
+	while (true)
+	{
+		char message[PACKET_SIZE] = { "ServerSend\n" };
+
+		//cin >> message;
+		//cin.ignore();
+
+		int sendByte = send(clientSocket, message, (int)strlen(message), 0);
+		if (sendByte <= 0)
+		{
+			cout << "Send Error Num : " << GetLastError() << endl;
+			closesocket(clientSocket);
+			break;
+		}
+
+		cout << "Send to Client : " << message << endl;
+	}
+
+	return 0;
+}
+
+void SendMessage(SOCKET& socket, const char* str)
+{
+	int SendByte = send(socket, str, (int)(sizeof(str)), 0);
+
+	if (SendByte <= 0)
+	{
+		SendError(socket);
+	}
+}
+
+void RecvMessage(SOCKET& socket, char* str)
+{
+	int RecvByte = recv(socket, str, (int)sizeof(str), MSG_WAITALL);
+
+	if (RecvByte <= 0)
+	{
+		RecvError(socket);
+	}
+	else
+	{
+		cout << "Recv to Client : " << recv << endl;
+	}
+}
+
+void SendError(SOCKET& socket)
+{
+	cout << "Send Error at Server : " << GetLastError() << endl;
+
+	SOCKADDR_IN clientSockAddr;
+	int clientSockAddrLength = sizeof(clientSockAddr);
+	getpeername(socket, (SOCKADDR*)&clientSockAddr, &clientSockAddrLength);
+
+	SOCKET errorSocket = socket;
+	closesocket(socket);
+	FD_CLR(socket, &Reads);
+	CopyReads = Reads;
+
+	char IP[1024] = { 0, };
+	inet_ntop(AF_INET, &clientSockAddr.sin_addr.s_addr, IP, 1024);
+	cout << "disconnected : " << IP << endl;
 }
 
 void RecvError(SOCKET& socket)
 {
+	cout << "Recv Error at Server : " << GetLastError() << endl;
+
 	SOCKADDR_IN clientSockAddr;
 	int clientSockAddrLength = sizeof(clientSockAddr);
 	getpeername(socket, (SOCKADDR*)&clientSockAddr, &clientSockAddrLength);

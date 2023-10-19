@@ -49,7 +49,7 @@ int main()
 	cout << "Finished dropping table (if existed)" << endl;
 
 	// 테이블 및 컬럼 생성
-	State->execute("CREATE TABLE UserInfo (SerialNum serial PRIMARY KEY, UserName VARCHAR(50) not null, UserPassword VARCHAR(50) not null)");
+	State->execute("CREATE TABLE UserInfo (SerialNum serial PRIMARY KEY, UserName VARCHAR(1024) not null, UserPassword VARCHAR(1024) not null)");
 	cout << "Finished creating table" << endl;
 	delete State;
 	// --------------------
@@ -58,17 +58,21 @@ int main()
 	//---------- 테이블에 정보 넣기 ----------
 	PreState = Connection->prepareStatement("INSERT INTO UserInfo(UserName, UserPassword) VALUES(?,?)");
 
-	PreState->setString(1, "DongHyeok");
+	//string testtext;
+	//char testtext[1024];
+	//cin >> testtext;
+
+	PreState->setString(1, "동혁");
 	PreState->setString(2, "abcd123!");
 	PreState->execute();
 	cout << "One row inserted." << endl;
 
-	PreState->setString(1, "YunJe");
+	PreState->setString(1, "윤제");
 	PreState->setString(2, "efgh123!");
 	PreState->execute();
 	cout << "One row inserted." << endl;
 
-	PreState->setString(1, "ChanYoung");
+	PreState->setString(1, "찬영");
 	PreState->setString(2, "abcd456!");
 	PreState->execute();
 	cout << "One row inserted." << endl;
@@ -133,7 +137,7 @@ int main()
 	cout << "Finished dropping table (if existed)" << endl;
 
 	// 테이블 및 컬럼 생성
-	State->execute("CREATE TABLE ChatLog (MessageNum serial PRIMARY KEY, SenderID INT not null, SenderName VARCHAR(50) not null, Text VARCHAR(50), Time DATETIME)");
+	State->execute("CREATE TABLE ChatLog (MessageNum serial PRIMARY KEY, SenderID INT not null, SenderName VARCHAR(1024) not null, Text VARCHAR(50), Time DATETIME)");
 	cout << "Finished creating table" << endl;
 	delete State;
 	// --------------------

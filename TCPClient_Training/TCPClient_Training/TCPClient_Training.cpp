@@ -92,6 +92,9 @@ int main()
 
 	WaitForMultipleObjects(2, ThreadHandles, TRUE, INFINITE);
 
+	CloseHandle(ThreadHandles[1]);
+	CloseHandle(ThreadHandles[0]);
+	closesocket(ServerSocket);
 	WSACleanup();
 
 	return 0;
@@ -133,10 +136,10 @@ unsigned __stdcall SendThread(void* arg)
 
 	while (true)
 	{
-		char message[PACKET_SIZE] = { 0, };
+		char message[PACKET_SIZE] = { "ClientSend\n" };
 
-		cin >> message;
-		cin.ignore();
+		//cin >> message;
+		//cin.ignore();
 
 		int sendByte = send(serverSocket,message, (int)strlen(message), 0);
 		if (sendByte <= 0)
