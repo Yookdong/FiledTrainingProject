@@ -4,7 +4,7 @@
 #include <process.h>
 
 #pragma comment(lib,"ws2_32.lib")
-#define PACKET_SIZE 1024
+#define PACKET_SIZE_MAX 1024
 using namespace std;
 
 //----- MySQL -----
@@ -234,9 +234,9 @@ unsigned __stdcall RecvThread(void* arg)
 
 	while (true)
 	{
-		char buffer[PACKET_SIZE] = { 0, };
+		char buffer[PACKET_SIZE_MAX] = { 0, };
 
-		int recvByte = recv(clientSocket, buffer, PACKET_SIZE, MSG_WAITALL);
+		int recvByte = recv(clientSocket, buffer, PACKET_SIZE_MAX, MSG_WAITALL);
 
 		if (recvByte <= 0)
 		{
@@ -257,7 +257,7 @@ unsigned __stdcall SendThread(void* arg)
 
 	while (true)
 	{
-		char message[PACKET_SIZE] = { "ServerSend\n" };
+		char message[PACKET_SIZE_MAX] = { "ServerSend\n" };
 
 		//cin >> message;
 		//cin.ignore();

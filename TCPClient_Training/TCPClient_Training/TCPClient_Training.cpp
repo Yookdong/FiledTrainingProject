@@ -7,12 +7,24 @@
 #include <WinSock2.h>
 #include <ws2tcpip.h>
 
+#include "PacketMaker.h"
+
 using namespace std;
 #pragma comment(lib, "ws2_32")
-#define PACKET_SIZE 1024
+#define PACKET_SIZE_MAX 1024
+
+EPacket CurrentPacket = EPacket::None;
 
 unsigned WINAPI RecvThread(void* arg);
 unsigned WINAPI SendThread(void* arg);
+
+void ChatProgramStart(SOCKET& socket);
+void SendCheckMessage(SOCKET& socket, const EPacket& value);
+void CheckID(SOCKET& socket, const EPacket& value);
+void CheckPW(SOCKET& socket, const EPacket& value);
+void SendChating(SOCKET& socket);
+
+bool bCheckSendSuccess = false;
 
 int main()
 {
@@ -53,39 +65,6 @@ int main()
 		cout << "Server Connect\n";
 	}
 
-	//// 서버에서 메세지 받기
-	//char Recv[PACKET_SIZE] = { 0, };
-
-	//int RecvByte = recv(ServerSocket, Recv, sizeof(Recv), 0);
-
-	//if (RecvByte <= 0)
-	//{
-	//	cout << "Recv Error" << endl;
-	//	cout << "Socket Error Number : " << GetLastError() << endl;
-	//	closesocket(ServerSocket);
-	//	continue;
-	//}
-
-	//cout << "Receive Message : " << Recv << endl;
-
-	//// 서버로 메세지 보내기
-	//char Message[PACKET_SIZE] = { 0, };
-
-	//cout << "Send to ";
-	//cin >> Message;
-
-	//int SendSize = send(ServerSocket, Message, sizeof(Message), 0);
-
-	//if (SendSize <= 0)
-	//{
-	//	cout << "Send Error" << endl;
-	//	cout << "Socket Error Number : " << GetLastError() << endl;
-	//	closesocket(ServerSocket);
-	//	continue;
-	//}
-
-	//closesocket(ServerSocket);
-
 	HANDLE ThreadHandles[2];
 	ThreadHandles[0] = (HANDLE)_beginthreadex(nullptr, 0, RecvThread, (void*)&ServerSocket, 0, nullptr);
 	ThreadHandles[1] = (HANDLE)_beginthreadex(nullptr, 0, SendThread, (void*)&ServerSocket, 0, nullptr);
@@ -112,9 +91,8 @@ unsigned __stdcall RecvThread(void* arg)
 
 		// 일단 받은 데이터 전체를 가지고 하는 코드
 		// 패킷을 이제 만들어서 어떻게 자료를 가지고 갈지 정하면 된다. 
-		char buffer[PACKET_SIZE] = { 0, };
-
-		int recvByte = recv(serverSocket, buffer, PACKET_SIZE, MSG_WAITALL);
+		unsigned short packetSize = 0;
+		int recvByte = recv(serverSocket, (char*)(&packetSize), 2, MSG_WAITALL);
 
 		if (recvByte <= 0)
 		{
@@ -123,8 +101,86 @@ unsigned __stdcall RecvThread(void* arg)
 			break;
 		}
 
-		// 받은 버퍼를 가지고 할 수 있는 코드를 짠다.
-		cout << buffer << endl;
+		packetSize = ntohs(packetSize);
+
+		char* buffer = new char[packetSize];
+
+		recvByte = recv(serverSocket, buffer, packetSize, MSG_WAITALL);
+
+		if (recvByte <= 0)
+		{
+			cout << "Recv Error Num : " << GetLastError() << endl;
+			closesocket(serverSocket);
+			break;
+		}
+
+		unsigned short code = 0;
+		memcpy(&code, buffer, 2);
+		EPacket ECode = (EPacket)(ntohs(code));
+
+		switch (ECode)
+		{
+		case EPacket::S2C_IsLogin:
+			cout << "Input Your ID : ";
+			CurrentPacket = EPacket::C2S_ReqCheckID;
+			break;
+		case EPacket::S2C_IsJoin:
+			cout << "Input ID you want to use : ";
+			CurrentPacket = EPacket::C2S_Make_NewID;
+			break;
+		case EPacket::S2C_ID_Success:
+			cout << "Input Your PW : ";
+			CurrentPacket = EPacket::C2S_ReqCheckPW;
+			break;
+		case EPacket::S2C_ID_Failed:
+			cout << "Retry Input Your ID : ";
+			CurrentPacket = EPacket::C2S_ReqCheckID;
+			break;
+		case EPacket::S2C_PW_Success:
+			system("cls");
+			cout << "You can start Chating!\n";
+			cout << "---------------------------------------------------------\n";
+			CurrentPacket = EPacket::C2S_Chat;
+			break;
+		case EPacket::S2C_PW_Failed:
+			cout << "Retry Input Your PW : ";
+			CurrentPacket = EPacket::C2S_ReqCheckPW;
+			break;
+		case EPacket::S2C_Make_ID_Success:
+			cout << "Input PW you want to use : ";
+			CurrentPacket = EPacket::C2S_Make_NewPW;
+			break;
+		case EPacket::S2C_Make_ID_Failed:
+			cout << "Retry Input ID you want to use : ";
+			CurrentPacket = EPacket::C2S_Make_NewID;
+			break;
+		case EPacket::S2C_Make_PW_Success:
+			cout << "Join Success\n";
+			cout << "Try Login Now\n";
+			cout << "---------------------------------------------------------\n";
+			CurrentPacket = EPacket::C2S_IsLogin;
+			break;
+		case EPacket::S2C_Make_PW_Failed:
+			cout << "Retry Input PW you want to use : ";
+			CurrentPacket = EPacket::C2S_Make_NewPW;
+			break;
+		case EPacket::S2C_CanChat:
+			CurrentPacket = EPacket::C2S_Chat;
+			break;
+		case EPacket::S2C_Chat:
+		{
+			char message[PACKET_SIZE_MAX] = { 0, };
+			memcpy(&message, buffer + 2, packetSize - 2);
+			cout << message << endl;
+		}
+		break;
+		case EPacket::Max:
+			cout << "Server Error\n";
+			exit(-1);
+			break;
+		default:
+			break;
+		}
 	}
 
 	return 0;
@@ -136,19 +192,166 @@ unsigned __stdcall SendThread(void* arg)
 
 	while (true)
 	{
-		char message[PACKET_SIZE] = { "ClientSend\n" };
-
-		//cin >> message;
-		//cin.ignore();
-
-		int sendByte = send(serverSocket,message, (int)strlen(message), 0);
-		if (sendByte <= 0)
+		switch (CurrentPacket)
 		{
-			cout << "Send Error Num : " << GetLastError() << endl;
-			closesocket(serverSocket);
+		case EPacket::None:
+			ChatProgramStart(serverSocket);
+			break;
+		case EPacket::C2S_Chat:
+			SendChating(serverSocket);
+			break;
+		default:
+			SendCheckMessage(serverSocket, CurrentPacket);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+void ChatProgramStart(SOCKET& socket)
+{
+	cout << "Hello! This Chating Program\n";
+
+	while (true)
+	{
+		cout << "What do you want to do?\n";
+		cout << "1. Login     2. Join\n";
+
+		char check[10] = { 0, };
+		cin >> check;
+		cin.ignore();
+
+		if (strlen(check) > 1)
+		{
+			cout << "Input Error\n";
+			continue;
+		}
+
+		switch (check[0])
+		{
+		case '1':
+			bCheckSendSuccess = PacketMaker::SendPacket(&socket, EPacket::C2S_IsLogin);
+			if (bCheckSendSuccess)
+			{
+				CurrentPacket = EPacket::None;
+			}
+			break;
+		case '2':
+			bCheckSendSuccess = PacketMaker::SendPacket(&socket, EPacket::C2S_IsJoin);
+			if (bCheckSendSuccess)
+			{
+				CurrentPacket = EPacket::None;
+			}
+			break;
+		default:
+			cout << "Input Error\n";
+			continue;
 			break;
 		}
 
+		break;
 	}
-	return 0;
+}
+
+void SendCheckMessage(SOCKET& socket, const EPacket& value)
+{
+	switch (value)
+	{
+	case EPacket::C2S_ReqCheckID:
+		CheckID(socket, value);
+		break;
+	case EPacket::C2S_ReqCheckPW:
+		CheckPW(socket, value);
+		break;
+	case EPacket::C2S_Make_NewID:
+		CheckID(socket, value);
+		break;
+	case EPacket::C2S_Make_NewPW:
+		CheckPW(socket, value);
+		break;
+	default:
+		break;
+	}
+}
+
+void CheckID(SOCKET& socket, const EPacket& value)
+{
+	char UserID[101] = { 0, };
+
+	while (true)
+	{
+		cin >> UserID;
+		cin.ignore();
+		if (strlen(UserID) > 100)
+		{
+			cout << "ID too Long\n";
+			cout << "Retry Input Your ID\n";
+			continue;
+		}
+
+		bCheckSendSuccess = PacketMaker::SendPacket(&socket, value, UserID);
+		if (bCheckSendSuccess)
+		{
+			CurrentPacket = EPacket::Max;
+		}
+		else
+		{
+			cout << "Send Error\n";
+		}
+	}
+}
+
+void CheckPW(SOCKET& socket, const EPacket& value)
+{
+	char UserPW[101] = { 0, };
+
+	while (true)
+	{
+		cin >> UserPW;
+		cin.ignore();
+		if (strlen(UserPW) > 100)
+		{
+			cout << "PW too Long\n";
+			cout << "Retry Input Your PW\n";
+			continue;
+		}
+
+		bCheckSendSuccess = PacketMaker::SendPacket(&socket, value, UserPW);
+		if (bCheckSendSuccess)
+		{
+			CurrentPacket = EPacket::Max;
+		}
+		else
+		{
+			cout << "Send Error\n";
+		}
+	}
+}
+
+void SendChating(SOCKET& socket)
+{
+	char UserPW[101] = { 0, };
+
+	while (true)
+	{
+		cin >> UserPW;
+		cin.ignore();
+		if (strlen(UserPW) > 100)
+		{
+			cout << "PW too Long\n";
+			cout << "Retry Input Your PW\n";
+			continue;
+		}
+
+		bCheckSendSuccess = PacketMaker::SendPacket(&socket, EPacket::C2S_Chat, UserPW);
+		if (bCheckSendSuccess)
+		{
+			CurrentPacket = EPacket::Max;
+		}
+		else
+		{
+			cout << "Send Error\n";
+		}
+	}
 }
