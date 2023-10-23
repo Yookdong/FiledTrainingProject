@@ -2,6 +2,7 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #include <process.h>
+#include "PacketMaker.h"
 
 #pragma comment(lib,"ws2_32.lib")
 #define PACKET_SIZE_MAX 1024
@@ -111,7 +112,7 @@ int main()
 
 		int changeSocketCunt = select(0, &CopyReads, 0, 0, &Timeout);
 
-		if (changeSocketCunt == 0)
+		if (changeSocketCunt <= 0)
 		{
 			// 바뀐게 없으니
 			continue;
@@ -164,24 +165,24 @@ int main()
 
 						break;
 					}
-					else
-					{
-						//쓰레드로 가야 해서 일단 지움
-						//char Recv[1024] = { 0, };
+					//else
+					//{
+					//	쓰레드로 가야 해서 일단 지움
+					//	char Recv[1024] = { 0, };
 
-						//int RecvByte = recv(Reads.fd_array[i], Recv, (int)sizeof(Recv), MSG_WAITALL);
+					//	int RecvByte = recv(Reads.fd_array[i], Recv, (int)sizeof(Recv), MSG_WAITALL);
 
-						//if (RecvByte <= 0)
-						//{
-						//	cout << "Recv Error Number : " << GetLastError() << endl;
-						//	RecvError(Reads.fd_array[i]);
-						//	break;
-						//}
-						//else
-						//{
-						//	cout << recv << endl;
-						//}
-					}
+					//	if (RecvByte <= 0)
+					//	{
+					//		cout << "Recv Error Number : " << GetLastError() << endl;
+					//		RecvError(Reads.fd_array[i]);
+					//		break;
+					//	}
+					//	else
+					//	{
+					//		cout << recv << endl;
+					//	}
+					//}
 				}
 			}
 		}
@@ -302,7 +303,7 @@ void RecvMessage(SOCKET& socket, char* str)
 
 void SendError(SOCKET& socket)
 {
-	cout << "Send Error at Server : " << GetLastError() << endl;
+	cout << "Send Error Server : " << GetLastError() << endl;
 
 	SOCKADDR_IN clientSockAddr;
 	int clientSockAddrLength = sizeof(clientSockAddr);
@@ -320,7 +321,7 @@ void SendError(SOCKET& socket)
 
 void RecvError(SOCKET& socket)
 {
-	cout << "Recv Error at Server : " << GetLastError() << endl;
+	cout << "Recv Error Server : " << GetLastError() << endl;
 
 	SOCKADDR_IN clientSockAddr;
 	int clientSockAddrLength = sizeof(clientSockAddr);
@@ -334,4 +335,20 @@ void RecvError(SOCKET& socket)
 	char IP[1024] = { 0, };
 	inet_ntop(AF_INET, &clientSockAddr.sin_addr.s_addr, IP, 1024);
 	cout << "disconnected : " << IP << endl;
+
+	// 유저들의 오류 메세지 처리
+	//if (TempUserList.count((unsigned short)DisconnectSocket) > 0)
+	//{
+	//	TempUserList.erase(TempUserList.find((unsigned short)DisconnectSocket));
+	//}
+
+	//string DisconnectUserNickName = UserList[(unsigned short)DisconnectSocket].NickName;
+
+	//if (UserList.count((unsigned short)DisconnectSocket) > 0)
+	//{
+	//	UserList.erase(UserList.find((unsigned short)DisconnectSocket));
+	//}
+
+	//string broadCastMessage = DisconnectUserNickName + " has left.";
+	//PacketMaker::SendPacketAllClient(UserList, EPacket::Max, broadCastMessage.data());
 }

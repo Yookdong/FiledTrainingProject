@@ -277,20 +277,20 @@ void SendCheckMessage(SOCKET& socket, const EPacket& value)
 
 void CheckID(SOCKET& socket, const EPacket& value)
 {
-	char UserID[101] = { 0, };
+	char userID[101] = { 0, };
 
 	while (true)
 	{
-		cin >> UserID;
+		cin >> userID;
 		cin.ignore();
-		if (strlen(UserID) > 100)
+		if (strlen(userID) > 100)
 		{
 			cout << "ID too Long\n";
 			cout << "Retry Input Your ID\n";
 			continue;
 		}
 
-		bCheckSendSuccess = PacketMaker::SendPacket(&socket, value, UserID);
+		bCheckSendSuccess = PacketMaker::SendPacket(&socket, value, userID);
 		if (bCheckSendSuccess)
 		{
 			CurrentPacket = EPacket::Max;
@@ -304,20 +304,20 @@ void CheckID(SOCKET& socket, const EPacket& value)
 
 void CheckPW(SOCKET& socket, const EPacket& value)
 {
-	char UserPW[101] = { 0, };
+	char userPW[101] = { 0, };
 
 	while (true)
 	{
-		cin >> UserPW;
+		cin >> userPW;
 		cin.ignore();
-		if (strlen(UserPW) > 100)
+		if (strlen(userPW) > 100)
 		{
 			cout << "PW too Long\n";
 			cout << "Retry Input Your PW\n";
 			continue;
 		}
 
-		bCheckSendSuccess = PacketMaker::SendPacket(&socket, value, UserPW);
+		bCheckSendSuccess = PacketMaker::SendPacket(&socket, value, userPW);
 		if (bCheckSendSuccess)
 		{
 			CurrentPacket = EPacket::Max;
@@ -331,20 +331,20 @@ void CheckPW(SOCKET& socket, const EPacket& value)
 
 void SendChating(SOCKET& socket)
 {
-	char UserPW[101] = { 0, };
+	char message[PACKET_SIZE_MAX] = { 0, };
 
 	while (true)
 	{
-		cin >> UserPW;
+		cin >> message;
 		cin.ignore();
-		if (strlen(UserPW) > 100)
+		if (strlen(message) > (PACKET_SIZE_MAX - 1))
 		{
-			cout << "PW too Long\n";
+			cout << "Message too Long\n";
 			cout << "Retry Input Your PW\n";
 			continue;
 		}
 
-		bCheckSendSuccess = PacketMaker::SendPacket(&socket, EPacket::C2S_Chat, UserPW);
+		bCheckSendSuccess = PacketMaker::SendPacket(&socket, EPacket::C2S_Chat, message);
 		if (bCheckSendSuccess)
 		{
 			CurrentPacket = EPacket::Max;
