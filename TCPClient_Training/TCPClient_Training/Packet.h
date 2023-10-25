@@ -5,13 +5,15 @@
 
 enum class EPacket
 {
-	None = 0,
+	None                  = 0,
+
+	ProgramStart          = 1,
 
 	// 시작 시 분기 확인
-	C2S_IsLogin           = 1,
-	S2C_IsLogin           = 2,
-	C2S_IsJoin            = 3,
-	S2C_IsJoin            = 4,
+	C2S_IsLogin           = 2,
+	S2C_IsLogin           = 3,
+	C2S_IsJoin            = 4,
+	S2C_IsJoin            = 5,
 
 	// 로그인
 	C2S_ReqCheckID        = 101,
@@ -30,6 +32,8 @@ enum class EPacket
 	C2S_Make_NewPW        = 204,
 	S2C_Make_PW_Success   = 205,
 	S2C_Make_PW_Failed    = 206,
+
+	C2S_Join_Success      = 207,
 
 	// 채팅 상황
 	C2S_IsCanChat         = 300,

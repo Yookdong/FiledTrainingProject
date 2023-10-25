@@ -20,12 +20,12 @@ public:
 	UserData(const string& id);
 	~UserData();
 
-	//// Getter
+	// Getter
 	//SOCKET* GetUserSocket() { return &UserSocket; }
 	//string GetUserName() { return UserName; }
 	//string GetUserPassward() { return UserPassward; }
 
-	//// Setter
+	// Setter
 	//void SetUserSocket(SOCKET& socket) { UserSocket = socket; }
 	//void SetUserName(string name) { UserName = name; }
 	//void SetUserPassward(string pw) { UserPassward = pw; }

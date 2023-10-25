@@ -2,7 +2,7 @@
 #include <iostream>
 
 
-// About UserData
+//---------- About UserData ----------
 UserData::UserData() : UserSocket(INVALID_SOCKET)
 {
 }
@@ -20,7 +20,8 @@ UserData::~UserData()
 	}
 }
 
-// About PacketMaker
+
+//---------- About PacketMaker ----------
 pair<char*, int> PacketMaker::MakeBuffer(EPacket value)
 {
 	int bufferSize = DefaultBufferSize;
@@ -39,7 +40,6 @@ pair<char*, int> PacketMaker::MakeBuffer(EPacket value, const char* data)
 	char* buffer = new char[bufferSize];
 
 	MakeHeader(buffer, value, packetSize);
-
 	memcpy(&buffer[4], data, packetSize);
 
 	return make_pair(buffer, bufferSize);
@@ -116,13 +116,16 @@ void PacketMaker::SendPacketAllClient(const map<unsigned short, UserData>& list,
 			continue;
 		}
 
-		if (user.first != userNum)
+		if(user.first!=userNum)
 		{
-			int SendByte = send(user.second.UserSocket, bufferData.first, bufferData.second, 0);
-			if (SendByte <= 0)
+			if (user.first != userNum)
 			{
-				cout << "Send Error : " << user.first << ". ErrorCode : " << GetLastError() << endl;
-				continue;
+				int SendByte = send(user.second.UserSocket, bufferData.first, bufferData.second, 0);
+				if (SendByte <= 0)
+				{
+					cout << "Send Error : " << user.first << ". ErrorCode : " << GetLastError() << endl;
+					continue;
+				}
 			}
 		}
 	}

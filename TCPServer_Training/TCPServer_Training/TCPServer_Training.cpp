@@ -18,10 +18,18 @@ using namespace std;
 const string server = "tcp://127.0.0.1:3306";
 const string username = "root";
 const string password = "ehggur0347!";
+
+sql::Driver* SQL_Driver;
+sql::Connection* SQL_Connection;
+sql::Statement* SQL_State;
+sql::ResultSet* SQL_Result;
 //----------
 
 fd_set Reads; // 원본
 fd_set CopyReads; // 복사본
+
+map<unsigned short, UserData> JoinUserList;
+map<unsigned short, UserData> LoginUserList;
 
 unsigned WINAPI Thread_Server(void* arg);
 unsigned WINAPI RecvThread(void* arg);
@@ -34,12 +42,6 @@ void RecvError(SOCKET& socket);
 int main()
 {
 	//----- DB 관련 코드 생성 -----
-	sql::Driver* SQL_Driver;
-	sql::Connection* SQL_Connection;
-	sql::Statement* SQL_State;
-	sql::PreparedStatement* SQL_PreState;
-	sql::ResultSet* SQL_Result;
-
 	try
 	{
 		SQL_Driver = get_driver_instance();
@@ -56,6 +58,8 @@ int main()
 	// 미리 생성해 둔 스키마 연결
 	SQL_Connection->setSchema("dbserver_tcp");
 	//----------
+
+	cout << "Server Start\n";
 
 	WSADATA WsaData;
 
@@ -96,7 +100,7 @@ int main()
 		cout << "Listen Error Number : " << GetLastError() << endl;
 		exit(-1);
 	}
-	
+
 	// Thread 용
 	struct timeval Timeout;
 	Timeout.tv_sec = 0;
@@ -104,6 +108,8 @@ int main()
 
 	FD_ZERO(&Reads);
 	FD_SET(ListenSocket, &Reads);
+
+	printf("Wait for Connecting\n");
 
 	while (true)
 	{
@@ -115,6 +121,7 @@ int main()
 		if (changeSocketCunt <= 0)
 		{
 			// 바뀐게 없으니
+			//printf("Not Change\n");
 			continue;
 		}
 		else
@@ -142,20 +149,7 @@ int main()
 
 						char IP[1024] = { 0, };
 						inet_ntop(AF_INET, &ClientSockAddr.sin_addr.s_addr, IP, 1024);
-						cout << "connected : " << IP << endl;
-
-						//쓰레드로 가야 해서 일단 지움
-						//char Message[1024] = { "Connect Success" };
-
-						//cout << "Send to Success\n";
-
-						//int SendByte = send(ClientSocket, Message, (int)(sizeof(Message)), 0);
-
-						//if (SendByte <= 0)
-						//{
-						//	cout << "Send Error Number : " << GetLastError() << endl;
-						//	exit(-1);
-						//}
+						cout << (unsigned short)ClientSocket << " connected : " << IP << endl;
 
 						_beginthreadex(nullptr, 0, Thread_Server, (void*)&ClientSocket, 0, nullptr);
 
@@ -165,24 +159,6 @@ int main()
 
 						break;
 					}
-					//else
-					//{
-					//	쓰레드로 가야 해서 일단 지움
-					//	char Recv[1024] = { 0, };
-
-					//	int RecvByte = recv(Reads.fd_array[i], Recv, (int)sizeof(Recv), MSG_WAITALL);
-
-					//	if (RecvByte <= 0)
-					//	{
-					//		cout << "Recv Error Number : " << GetLastError() << endl;
-					//		RecvError(Reads.fd_array[i]);
-					//		break;
-					//	}
-					//	else
-					//	{
-					//		cout << recv << endl;
-					//	}
-					//}
 				}
 			}
 		}
@@ -193,13 +169,15 @@ int main()
 
 	delete SQL_Connection;
 
+	system("pause");
+
 	return 0;
 }
 
 
 unsigned __stdcall Thread_Server(void* arg)
 {
-	cout << "---------- Server Thread Start ----------\n";
+	cout << "---------- Thread Start ----------\n";
 
 	SOCKET client = *(SOCKET*)arg;
 
@@ -208,23 +186,146 @@ unsigned __stdcall Thread_Server(void* arg)
 		cout << "ClientSocket Error" << GetLastError() << endl;
 	}
 
-	SendMessage(client, "Connect Success");
+	unsigned short clientNum = (unsigned short)client;
 
+	//SendMessage(client, "Connect Success");
 
-		char Recv[1024] = { 0, };
-
-		int RecvByte = recv(client, Recv, (int)sizeof(Recv), MSG_WAITALL);
-
-		if (RecvByte <= 0)
+	bool bSendSuccess = PacketMaker::SendPacket(&client, EPacket::ProgramStart, "Connect Success");
+	if (bSendSuccess)
+	{
+		while (true)
 		{
-			cout << "Recv Error Number : " << GetLastError() << endl;
-			RecvError(client);
+			unsigned short packetSize = 2;
+			int recvByte = recv(client, (char*)(&packetSize), 2, MSG_WAITALL);
+			if (recvByte <= 0)
+			{
+				RecvError(client);
+				break;
+			}
+
+			packetSize = ntohs(packetSize);
+
+			char* buffer = new char[packetSize];
+
+			recvByte = recv(client, buffer, packetSize, MSG_WAITALL);
+			if (recvByte <= 0)
+			{
+				RecvError(client);
+			}
+
+			unsigned short code = 0;
+			memcpy(&code, buffer, 2);
+			code = ntohs(code);
+
+			// Data
+			unsigned short dataSize = packetSize - 2;
+			//bool bSendSuccess = false;
+
+			switch ((EPacket)code)
+			{
+			case EPacket::None:
+				break;
+			case EPacket::C2S_IsLogin:
+				cout << "test\n";
+				PacketMaker::SendPacket(&client, EPacket::S2C_IsLogin);
+				break;
+			case EPacket::C2S_IsJoin:
+				PacketMaker::SendPacket(&client, EPacket::S2C_IsJoin);
+				break;
+			case EPacket::C2S_ReqCheckID:
+				// 데이터 베이스에서 아이디 검색
+				if (true)
+				{
+					PacketMaker::SendPacket(&client, EPacket::S2C_ID_Success);
+				}
+				else
+				{
+					cout << "Client ID is incorrect. ";
+					PacketMaker::SendPacket(&client, EPacket::S2C_ID_Failed);
+				}
+				break;
+			case EPacket::C2S_ReqCheckPW:
+				// 데이터 베이스에서 비밀번호 검색
+				if (true)
+				{
+					PacketMaker::SendPacket(&client, EPacket::S2C_PW_Success);
+				}
+				else
+				{
+					cout << "Client PW is incorrect. ";
+					PacketMaker::SendPacket(&client, EPacket::S2C_PW_Failed);
+				}
+				break;
+			case EPacket::C2S_Make_NewID:
+				// 데이터 베이스에서 아이디 검색
+				if (true)
+				{
+					PacketMaker::SendPacket(&client, EPacket::S2C_Make_ID_Success);
+				}
+				else
+				{
+					cout << "Client ID is incorrect. ";
+					PacketMaker::SendPacket(&client, EPacket::S2C_Make_ID_Failed);
+				}
+				break;
+			case EPacket::C2S_Make_NewPW:
+				// 데이터 베이스에서 비밀번호 검색
+				if (true)
+				{
+					PacketMaker::SendPacket(&client, EPacket::S2C_Make_PW_Success);
+				}
+				else
+				{
+					cout << "Client PW is incorrect. ";
+					PacketMaker::SendPacket(&client, EPacket::S2C_Make_PW_Failed);
+				}
+				break;
+			case EPacket::C2S_Join_Success:
+				PacketMaker::SendPacket(&client, EPacket::S2C_IsLogin);
+				break;
+			case EPacket::C2S_IsCanChat:
+				// 대화할 상대가 있는지 확인한다.
+				if (true)
+				{
+					PacketMaker::SendPacket(&client, EPacket::S2C_CanChat);
+				}
+				else
+				{
+
+				}
+				break;
+			case EPacket::C2S_Chat:
+			{
+				char message[PACKET_SIZE_MAX] = { 0, };
+				memcpy(&message, buffer + 2, dataSize);
+
+				cout << clientNum << "Send Chat : " << message << endl;
+
+				string chatUserName = LoginUserList[clientNum].UserName;
+				string chatMessage = chatUserName + " : " + message;
+				PacketMaker::SendPacketAllClient(LoginUserList, EPacket::S2C_Chat, chatMessage.data(), clientNum);
+
+				// Add to Log Data
+				//string sqlQuery = "INSERT INTO chatlog(SenderName,Text) VALUES(?,?)";
+				//sql::PreparedStatement* sql_PreState = SQL_Connection->prepareStatement(sqlQuery);
+				//sql_PreState->setString(1, chatUserName);
+				//sql_PreState->setString(2, message);
+				//sql_PreState->execute();
+
+				//delete sql_PreState;
+			}
+				break;
+			case EPacket::Max:
+				break;
+			default:
+				break;
+			}
 		}
-		else
-		{
-			cout << "Recv to Client : " << recv << endl;
-			strcpy_s(Recv, "");
-		}
+	}
+	else
+	{
+		SendError(client);
+	}
 
 	return 0;
 }
@@ -303,7 +404,7 @@ void RecvMessage(SOCKET& socket, char* str)
 
 void SendError(SOCKET& socket)
 {
-	cout << "Send Error Server : " << GetLastError() << endl;
+	cout << "Send Error : " << GetLastError() << endl;
 
 	SOCKADDR_IN clientSockAddr;
 	int clientSockAddrLength = sizeof(clientSockAddr);
@@ -321,7 +422,7 @@ void SendError(SOCKET& socket)
 
 void RecvError(SOCKET& socket)
 {
-	cout << "Recv Error Server : " << GetLastError() << endl;
+	cout << "Recv Error : " << GetLastError() << endl;
 
 	SOCKADDR_IN clientSockAddr;
 	int clientSockAddrLength = sizeof(clientSockAddr);
@@ -350,5 +451,5 @@ void RecvError(SOCKET& socket)
 	//}
 
 	//string broadCastMessage = DisconnectUserNickName + " has left.";
-	//PacketMaker::SendPacketAllClient(UserList, EPacket::Max, broadCastMessage.data());
+	//PacketMaker::SendPacketAllClient(UserList, EPacket::None, broadCastMessage.data());
 }

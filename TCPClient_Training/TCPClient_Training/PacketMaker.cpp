@@ -31,7 +31,7 @@ char* PacketMaker::MakeHeader(char* buffer, EPacket value, unsigned short size)
 {
 	//size   code  
 	//[][]   [][]
-	unsigned short newsize = htons(size);
+	unsigned short newsize = htons(size + 2);
 	unsigned short code = htons(static_cast<unsigned short>(value));
 
 	memcpy(buffer, &newsize, 2);
